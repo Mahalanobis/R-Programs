@@ -1,17 +1,19 @@
-googleSuggest = function(str='')
+# modified as Richie Cotton's comment -> http://www.r-chart.com/2010/07/what-search-engines-think-people-want.html
+
+googleSuggest = function(query = '', .opts = list())
 {
-  library(XML)
-  str=gsub(' ','%20',str) # URL - escape spaces
-  u=paste('http://google.com/complete/search?output=toolbar&q=',str, sep='')
-  doc = xmlTreeParse(u, useInternal=TRUE)
+  require(XML)
+  require(RCurl)
+  query <- curlEscape(query)
+  the_url <- paste('http://google.com/complete/search?output=toolbar&q=', query, sep='')
+  webpage <- getURL(the_url, .opts=.opts)
+  doc = xmlTreeParse(webpage, useInternal=TRUE)
 
-  search_string=sapply(getNodeSet(doc, "//CompleteSuggestion/suggestion"), function(el){xmlGetAttr(el,"data")})
-  count=sapply(getNodeSet(doc, "//CompleteSuggestion/num_queries"), function(el){xmlGetAttr(el,"int")})
-  df=as.data.frame(cbind(search_string,count))
-
-  # My numbers behave strangely.  So I do this conversion... Why???
-  df$count=as.numeric(as.character(df$count))
-  df
+  search_string <- sapply(getNodeSet(doc, "//CompleteSuggestion/suggestion"), function(elt){xmlGetAttr(elt, "data")})
+  count <- sapply(getNodeSet(doc, "//CompleteSuggestion/num_queries"), function(elt){xmlGetAttr(elt, "int")})
+  dfr <- data.frame(search_string = search_string, count = count, stringsAsFactors = FALSE)
+  dfr$count <- as.numeric(dfr$count)
+  dfr
 }
 
 # This function iterating through to get each letter of the alphabet... 
@@ -24,13 +26,11 @@ googleSuggest = function(str='')
 # http://stackoverflow.com/questions/1439513/creating-a-sequential-list-of-letters-with-r
 #
 
-googleSuggestAll = function(str='')
+ggoogleSuggestAll = function(query = '')
 {
-  queries = paste(str,letters)
-  df=data.frame()
-  for (i in 1:length(queries)) {
-    df=rbind(df,googleSuggest(queries[i]) )
-  }
-  df=df[with(df, order(df$count, decreasing=TRUE)),]
-  df
+queries <- paste(query, letters)
+results_list <- lapply(queries, googleSuggest)
+dfr <- do.call(rbind, results_list)
+dfr <- dfr[order(dfr$count, decreasing = TRUE), ]
+dfr
 }
